@@ -22,7 +22,10 @@ jobs:
           pip install -r requirements.txt pyinstaller
 
       - name: Build EXE with PyInstaller
-        run: pyinstaller --noconfirm --onefile --windowed --add-data "ui.html;." --collect-all webview --name SecureBatchPrinter app.py
+        run: pyinstaller --noconfirm --onefile --windowed --add-data "ui.html;." --collect-all webview --icon "icon.ico" --name SecureBatchPrinter app.py
+
+      - name: Download WebView2 bootstrapper
+        run: Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "MicrosoftEdgeWebview2Setup.exe"
 
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
