@@ -86,7 +86,10 @@ tbody tr.selected{background:var(--accent-soft)}
 .shell{width:100%;max-width:1040px;display:flex;background:var(--panel);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 20px 60px rgba(40,30,80,.18)}
 .side{width:212px;background:var(--panel2);border-inline-start:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column}
 .brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
-.brand .lg{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 6px 16px var(--accent-glow)}
+.brand .lg{width:38px;height:38px;border-radius:11px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px var(--accent-glow)}
+.brand .lg svg{width:24px;height:24px}
+@keyframes winIn{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:none}}
+.overlay.open .setwin,.overlay.open .modal{animation:winIn .4s cubic-bezier(.2,.8,.2,1) both}
 .brand b{font-size:15px}.brand span{display:block;font-size:11px;color:var(--muted)}
 .nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;color:var(--ink);font-size:13.5px;cursor:pointer;margin-bottom:3px;opacity:.85}
 .nav a:hover{background:var(--accent-soft);opacity:1}
@@ -141,7 +144,11 @@ input[type=checkbox]:checked::before{inset-inline-start:25px}
 
 body.dark{--page-bg:#131020;--panel:#1b1830;--panel2:#221d3a;--line:#332c4e;--ink:#e9e7f6;--muted:#a79fca;--field:#211c36;--accent-soft:#2a2450;--log-bg:#100d1a;--log-ink:#b9b2e0;--wait:#8a90a6;--done:#34d399;--print:#f0b429;--danger:#ff8a8a;--danger-line:#5a2b40;}
 .PDF{background:#fdecec;color:#e5484d}.Word{background:#e8f0fb;color:#2b6cb0}.Excel{background:#e6f6ec;color:#12b76a}.PowerPoint{background:#fdefe0;color:#d9730d}.img{background:#f0e9fd;color:#7c3aed}.CAD{background:#e9f6fb;color:#0e7490}.Email{background:#fbeef7;color:#a3357e}.Web{background:#eef2f7;color:#475569}
-body.dark .PDF{background:#3a1d22;color:#ff7b82}body.dark .Word{background:#16283f;color:#6cb0ff}body.dark .Excel{background:#123026;color:#5fe0a2}body.dark .PowerPoint{background:#3a2a17;color:#ffb267}body.dark .img{background:#2a1f3d;color:#c4a5ff}body.dark .CAD{background:#0f2f38;color:#67d3e8}body.dark .Email{background:#38182e;color:#f0a6d2}body.dark .Web{background:#1b2537;color:#9fb4d0}</style></head><body><div class="shell"><aside class="side"><div class="brand"><div class="lg">🖨</div><div><b>الطابعة الجماعية</b><span>Batch Printer</span></div></div><nav class="nav"><a class="active">🏠 الرئيسية</a><a onclick="openSettings()">⚙ الإعدادات</a><a onclick="estimate()">🧮 تقدير الطباعة</a><a onclick="openSettings()">💧 العلامة المائية</a><a onclick="about()">ℹ حول البرنامج</a></nav><div class="sfoot">الإصدار 1.1.0<br>مجاني · يعمل بلا إنترنت</div></aside><main class="main"><div class="hd"><div><h1>اطبع دفعة واحدة</h1><p>أضف ملفاتك ثم اطبعها كلها بضغطة واحدة</p></div><div class="sp"></div><button class="btn" id="themeBtn" onclick="toggleTheme()">🌙 ليلي</button><select id="printer" class="printer-sel"><option>HP LaserJet Pro M404</option><option>Canon G3411</option><option>EPSON L3150</option><option>Microsoft Print to PDF</option></select></div>
+body.dark .PDF{background:#3a1d22;color:#ff7b82}body.dark .Word{background:#16283f;color:#6cb0ff}body.dark .Excel{background:#123026;color:#5fe0a2}body.dark .PowerPoint{background:#3a2a17;color:#ffb267}body.dark .img{background:#2a1f3d;color:#c4a5ff}body.dark .CAD{background:#0f2f38;color:#67d3e8}body.dark .Email{background:#38182e;color:#f0a6d2}body.dark .Web{background:#1b2537;color:#9fb4d0}
+#dropzone{position:fixed;inset:14px;border:3px dashed var(--accent);border-radius:18px;background:rgba(109,94,252,.10);display:none;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--accent);z-index:200;pointer-events:none}
+#dropzone.show{display:flex}
+body.dark #dropzone{background:rgba(109,94,252,.20)}
+</style></head><body><div class="shell"><aside class="side"><div class="brand"><div class="lg"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="5" rx="1" fill="#6d5efc"/><rect x="3" y="8" width="18" height="8" rx="2" fill="#6d5efc"/><rect x="6" y="13" width="12" height="8" rx="1" fill="#b9acff"/><circle cx="17" cy="11" r="1" fill="#fff"/></svg></div><div><b>الطابعة الجماعية</b><span>Batch Printer</span></div></div><nav class="nav"><a class="active">🏠 الرئيسية</a><a onclick="openSettings()">⚙ الإعدادات</a><a onclick="estimate()">🧮 تقدير الطباعة</a><a onclick="openSettings()">💧 العلامة المائية</a><a onclick="about()">ℹ حول البرنامج</a></nav><div class="sfoot">الإصدار 1.1.0<br>مجاني · يعمل بلا إنترنت</div></aside><main class="main"><div class="hd"><div><h1>اطبع دفعة واحدة</h1><p>أضف ملفاتك ثم اطبعها كلها بضغطة واحدة</p></div><div class="sp"></div><button class="btn" id="themeBtn" onclick="toggleTheme()">🌙 ليلي</button><select id="printer" class="printer-sel"><option>HP LaserJet Pro M404</option><option>Canon G3411</option><option>EPSON L3150</option><option>Microsoft Print to PDF</option></select></div>
 <div class="toolbar">
   <button class="btn" onclick="addFiles()">＋ إضافة ملفات</button>
   <button class="btn" onclick="addFolder()">📁 مجلد</button>
@@ -423,6 +430,29 @@ function closeXS(){var o=document.querySelectorAll(".xs.open");for(var i=0;i<o.l
 document.addEventListener("click",closeXS);
 function toggleTheme(){var d=document.body.classList.toggle("dark");$("themeBtn").textContent=d?"☀ نهاري":"🌙 ليلي";}
 
+// ===== السحب والإفلات =====
+var _dz=document.createElement('div');_dz.id='dropzone';_dz.innerHTML='⬇ أفلت الملفات هنا لإضافتها';document.body.appendChild(_dz);
+var _dc=0;
+function _pushMeta(f){files.push({name:f.name,type:typeOf(f.name),size:f.size,path:f.path,status:"بالانتظار"});}
+function _readSend(file){return new Promise(function(res){var r=new FileReader();r.onload=function(){window.pywebview.api.add_dropped(file.name,r.result).then(res).catch(function(){res(null);});};r.onerror=function(){res(null);};r.readAsDataURL(file);});}
+window.addEventListener('dragenter',function(e){e.preventDefault();_dc++;_dz.classList.add('show');});
+window.addEventListener('dragover',function(e){e.preventDefault();});
+window.addEventListener('dragleave',function(e){e.preventDefault();_dc--;if(_dc<=0){_dc=0;_dz.classList.remove('show');}});
+window.addEventListener('drop',function(e){e.preventDefault();_dc=0;_dz.classList.remove('show');
+  var fl=(e.dataTransfer&&e.dataTransfer.files)?Array.prototype.slice.call(e.dataTransfer.files):[];
+  if(!fl.length)return;
+  var hp=!!(window.pywebview&&window.pywebview.api);
+  if(!hp){fl.forEach(function(f){files.push({name:f.name,type:typeOf(f.name),size:"—",status:"بالانتظار"});});render();return;}
+  var paths=[],blobs=[];
+  fl.forEach(function(f){var p=f.pywebviewFullPath||f.path;if(p)paths.push(p);else blobs.push(f);});
+  (async function(){
+    try{
+      if(paths.length){var m=await window.pywebview.api.add_paths(paths);(m||[]).forEach(_pushMeta);}
+      for(var k=0;k<blobs.length;k++){var meta=await _readSend(blobs[k]);if(meta)_pushMeta(meta);}
+      render();log("أُضيف بالسحب: "+fl.length+" عنصر.");
+    }catch(err){log("تعذّر السحب: "+err,"warn");}
+  })();
+});
 var _inited=false;
 async function init(){
   if(_inited)return;_inited=true;

@@ -1,21 +1,26 @@
 # -*- coding: utf-8 -*-
 """
 الطابعة الجماعية الآمنة — تطبيق سطح المكتب (واجهة أوركيد)
-=========================================================
-يعرض واجهة أوركيد (HTML) داخل نافذة سطح مكتب عبر pywebview،
-ويشغّل خلفية Python حقيقية للطباعة الجماعية.
+واجهة HTML داخل نافذة سطح مكتب (pywebview) + خلفية Python للطباعة الفعلية.
 
-الأمان: يعمل محليًا بالكامل، لا يتصل بالشبكة، ويعطّل ماكرو أوفيس عند الطباعة.
-النظام: Windows. الترخيص: مجاني ومفتوح المصدر.
+المزايا:
+  * الطباعة كـ«مهمة واحدة» مدمجة: كل الملفات تُطبع ضمن مهمة طباعة واحدة،
+    فيمكن إيقافها فورًا دون الحاجة لإلغاء كل ملف على حدة من طابور ويندوز.
+    (ملفات أوفيس تُحوّل داخليًا إلى PDF ثم تُدمج مع البقية في نفس المهمة.)
+  * سحب وإفلات الملفات على النافذة لإضافتها مباشرة.
+  * آمن: يعمل محليًا، بلا شبكة، ويعطّل ماكرو أوفيس.
+
+النظام: Windows 10/11. الترخيص: مجاني ومفتوح المصدر.
 """
 
 import os
 import sys
 import json
-import time
+import base64
+import tempfile
 import threading
 
-import webview  # pywebview
+import webview
 
 try:
     import win32print
@@ -25,7 +30,6 @@ except Exception:
 
 APP_VERSION = "1.1.0"
 
-# ---------- الصيغ ----------
 PDF_EXTS = {".pdf"}
 WORD_EXTS = {".doc", ".docx", ".rtf", ".txt", ".odt", ".htm", ".html"}
 EXCEL_EXTS = {".xls", ".xlsx", ".xlsm", ".csv", ".ods"}
@@ -64,9 +68,23 @@ def human(n):
     return "%.1f TB" % n
 
 
-# ===================== محرك الطباعة الآمن =====================
+def _draw_page(hDC, img):
+    import win32con
+    from PIL import ImageWin
+    horz = hDC.GetDeviceCaps(win32con.HORZRES)
+    vert = hDC.GetDeviceCaps(win32con.VERTRES)
+    hDC.StartPage()
+    iw, ih = img.size
+    scale = min(horz / float(iw), vert / float(ih))
+    dw, dh = int(iw * scale), int(ih * scale)
+    x = (horz - dw) // 2
+    y = (vert - dh) // 2
+    ImageWin.Dib(img).draw(hDC.GetHandleOutput(), (x, y, x + dw, y + dh))
+    hDC.EndPage()
+
+
 class PrintEngine:
-    MSO_SECURITY_FORCE_DISABLE = 3
+    MSO = 3  # msoAutomationSecurityForceDisable
 
     def __init__(self, printer_name, copies=1, page_range="", dpi=300, log=None, cancel_event=None):
         self.printer = printer_name
@@ -83,8 +101,8 @@ class PrintEngine:
                 self._orig_default = win32print.GetDefaultPrinter()
                 if self.printer and self.printer != self._orig_default:
                     win32print.SetDefaultPrinter(self.printer)
-            except Exception as e:
-                self.log("تنبيه: تعذّر ضبط الطابعة الافتراضية (%s)" % e)
+            except Exception:
+                pass
         return self
 
     def __exit__(self, *exc):
@@ -94,15 +112,6 @@ class PrintEngine:
             except Exception:
                 pass
         return False
-
-    def print_file(self, path):
-        cat = ext_category(path)
-        if cat == "PDF":        return self._print_pdf(path)
-        if cat == "Word":       return self._print_word(path)
-        if cat == "Excel":      return self._print_excel(path)
-        if cat == "PowerPoint": return self._print_ppt(path)
-        if cat == "Image":      return self._print_image(path)
-        raise ValueError("صيغة غير مدعومة")
 
     @staticmethod
     def _parse_pages(rng, count):
@@ -125,141 +134,152 @@ class PrintEngine:
                     out.append(p - 1)
         return out or list(range(count))
 
-    def _print_pdf(self, path):
-        import fitz
+    # تحويل ملف أوفيس إلى PDF مؤقت (لدمجه في المهمة الواحدة)
+    def office_to_pdf(self, path):
+        import win32com.client as win32
+        cat = ext_category(path)
+        fd, tmp = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        ap = os.path.abspath(path)
+        out = os.path.abspath(tmp)
+        if cat == "Word":
+            app = win32.DispatchEx("Word.Application")
+            try:
+                app.Visible = False
+                try: app.AutomationSecurity = self.MSO
+                except Exception: pass
+                doc = app.Documents.Open(ap, ReadOnly=True, ConfirmConversions=False, AddToRecentFiles=False)
+                doc.ExportAsFixedFormat(out, 17)  # wdExportFormatPDF
+                doc.Close(False)
+            finally:
+                try: app.Quit()
+                except Exception: pass
+        elif cat == "Excel":
+            app = win32.DispatchEx("Excel.Application")
+            try:
+                app.Visible = False
+                try: app.AutomationSecurity = self.MSO
+                except Exception: pass
+                wb = app.Workbooks.Open(ap, ReadOnly=True, UpdateLinks=0)
+                wb.ExportAsFixedFormat(0, out)  # xlTypePDF
+                wb.Close(False)
+            finally:
+                try: app.Quit()
+                except Exception: pass
+        elif cat == "PowerPoint":
+            app = win32.DispatchEx("PowerPoint.Application")
+            try:
+                try: app.AutomationSecurity = self.MSO
+                except Exception: pass
+                try: app.Visible = True
+                except Exception: pass
+                pres = app.Presentations.Open(ap, WithWindow=False, ReadOnly=True)
+                pres.SaveAs(out, 32)  # ppSaveAsPDF
+                pres.Close()
+            finally:
+                try: app.Quit()
+                except Exception: pass
+        else:
+            raise ValueError("ليست صيغة أوفيس")
+        return out
+
+    def pages_for(self, path):
         from PIL import Image
+        if ext_category(path) == "Image":
+            img = Image.open(path)
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            return [img]
+        import fitz
         doc = fitz.open(path)
         try:
-            pages = self._parse_pages(self.page_range, doc.page_count)
+            rng = self._parse_pages(self.page_range, doc.page_count)
             zoom = self.dpi / 72.0
             mat = fitz.Matrix(zoom, zoom)
-            images = []
-            for i in pages:
+            out = []
+            for i in rng:
                 if self.cancel.is_set():
                     break
-                page = doc.load_page(i)
-                pix = page.get_pixmap(matrix=mat, alpha=False)
-                images.append(Image.frombytes("RGB", (pix.width, pix.height), pix.samples))
+                pg = doc.load_page(i)
+                pix = pg.get_pixmap(matrix=mat, alpha=False)
+                out.append(Image.frombytes("RGB", (pix.width, pix.height), pix.samples))
+            return out
         finally:
             doc.close()
-        for _ in range(self.copies):
-            if self.cancel.is_set():
-                break
-            self._draw_images(images, os.path.basename(path))
-        return True
 
-    def _print_image(self, path):
-        from PIL import Image
-        img = Image.open(path)
-        if img.mode not in ("RGB", "L"):
-            img = img.convert("RGB")
-        for _ in range(self.copies):
-            if self.cancel.is_set():
-                break
-            self._draw_images([img], os.path.basename(path))
-        return True
-
-    def _draw_images(self, images, docname="Document"):
+    # الطباعة كمهمة طباعة واحدة لكل الملفات (قابلة للإيقاف الفوري)
+    def print_batch(self, paths, on_start, on_done, on_log, on_progress):
         import win32ui
-        import win32con
-        from PIL import ImageWin
+        prepared = []   # (orig_index, render_path, name)
+        temps = []
+        total = len(paths)
+        for i, p in enumerate(paths):
+            if self.cancel.is_set():
+                break
+            cat = ext_category(p)
+            if cat in ("Word", "Excel", "PowerPoint"):
+                on_log("تحويل: %s" % os.path.basename(p))
+                try:
+                    pdf = self.office_to_pdf(p)
+                    temps.append(pdf)
+                    prepared.append((i, pdf, os.path.basename(p)))
+                except Exception as e:
+                    on_done(i, False)
+                    on_log("تعذّر تحويل %s: %s" % (os.path.basename(p), e))
+            elif cat in ("PDF", "Image"):
+                prepared.append((i, p, os.path.basename(p)))
+            else:
+                on_done(i, False)
+
+        if not prepared:
+            return (0, total)
+
+        ok = fail = 0
         hDC = win32ui.CreateDC()
         hDC.CreatePrinterDC(self.printer)
+        started = False
         try:
-            horz = hDC.GetDeviceCaps(win32con.HORZRES)
-            vert = hDC.GetDeviceCaps(win32con.VERTRES)
-            hDC.StartDoc(docname)
-            try:
-                for img in images:
+            hDC.StartDoc("Secure Batch Print")
+            started = True
+            for c in range(self.copies):
+                if self.cancel.is_set():
+                    break
+                for (i, src, name) in prepared:
                     if self.cancel.is_set():
                         break
-                    hDC.StartPage()
-                    iw, ih = img.size
-                    scale = min(horz / float(iw), vert / float(ih))
-                    dw, dh = int(iw * scale), int(ih * scale)
-                    x = (horz - dw) // 2
-                    y = (vert - dh) // 2
-                    ImageWin.Dib(img).draw(hDC.GetHandleOutput(), (x, y, x + dw, y + dh))
-                    hDC.EndPage()
-            finally:
-                hDC.EndDoc()
+                    if c == 0:
+                        on_start(i)
+                    try:
+                        imgs = self.pages_for(src)
+                        for img in imgs:
+                            if self.cancel.is_set():
+                                break
+                            _draw_page(hDC, img)
+                        if c == 0:
+                            on_done(i, True)
+                            ok += 1
+                            on_progress(round((ok + fail) * 100.0 / max(1, len(prepared))))
+                    except Exception as e:
+                        if c == 0:
+                            on_done(i, False)
+                            fail += 1
+                            on_log("خطأ في %s: %s" % (name, e))
         finally:
-            hDC.DeleteDC()
-
-    def _print_word(self, path):
-        import win32com.client as win32
-        app = None
-        try:
-            app = win32.DispatchEx("Word.Application")
-            app.Visible = False
-            try: app.DisplayAlerts = 0
-            except Exception: pass
-            try: app.AutomationSecurity = self.MSO_SECURITY_FORCE_DISABLE
-            except Exception: pass
-            doc = app.Documents.Open(os.path.abspath(path), ReadOnly=True,
-                                     ConfirmConversions=False, AddToRecentFiles=False)
             try:
-                try: app.ActivePrinter = self.printer
-                except Exception: pass
-                doc.PrintOut(Background=False, Copies=self.copies)
-                time.sleep(1.0)
-            finally:
-                doc.Close(SaveChanges=False)
-            return True
-        finally:
-            if app is not None:
-                try: app.Quit()
-                except Exception: pass
-
-    def _print_excel(self, path):
-        import win32com.client as win32
-        app = None
-        try:
-            app = win32.DispatchEx("Excel.Application")
-            app.Visible = False
-            try: app.DisplayAlerts = False
-            except Exception: pass
-            try: app.AutomationSecurity = self.MSO_SECURITY_FORCE_DISABLE
-            except Exception: pass
-            wb = app.Workbooks.Open(os.path.abspath(path), ReadOnly=True, UpdateLinks=0)
+                if started:
+                    hDC.EndDoc()
+            except Exception:
+                pass
             try:
+                hDC.DeleteDC()
+            except Exception:
+                pass
+            for f in temps:
                 try:
-                    wb.PrintOut(Copies=self.copies, ActivePrinter=self.printer)
+                    os.remove(f)
                 except Exception:
-                    wb.PrintOut(Copies=self.copies)
-                time.sleep(1.0)
-            finally:
-                wb.Close(SaveChanges=False)
-            return True
-        finally:
-            if app is not None:
-                try: app.Quit()
-                except Exception: pass
-
-    def _print_ppt(self, path):
-        import win32com.client as win32
-        app = None
-        try:
-            app = win32.DispatchEx("PowerPoint.Application")
-            try: app.AutomationSecurity = self.MSO_SECURITY_FORCE_DISABLE
-            except Exception: pass
-            try: app.Visible = True
-            except Exception: pass
-            pres = app.Presentations.Open(os.path.abspath(path), WithWindow=False, ReadOnly=True)
-            try:
-                try: pres.PrintOptions.ActivePrinter = self.printer
-                except Exception: pass
-                try: pres.PrintOptions.NumberOfCopies = self.copies
-                except Exception: pass
-                pres.PrintOut()
-                time.sleep(1.5)
-            finally:
-                pres.Close()
-            return True
-        finally:
-            if app is not None:
-                try: app.Quit()
-                except Exception: pass
+                    pass
+        return (ok, fail)
 
 
 # ===================== الجسر بين الواجهة والخلفية =====================
@@ -305,23 +325,42 @@ class Api:
         types = ("المستندات المدعومة (*.pdf;*.doc;*.docx;*.rtf;*.txt;*.xls;*.xlsx;*.csv;*.ppt;*.pptx;*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff;*.gif)",
                  "كل الملفات (*.*)")
         res = _window.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=True, file_types=types)
-        out = []
-        for p in (res or []):
-            if ext_category(p):
-                out.append(self._meta(p))
-        return out
+        return [self._meta(p) for p in (res or []) if ext_category(p)]
 
     def pick_folder(self):
         res = _window.create_file_dialog(webview.FOLDER_DIALOG)
         out = []
         if res:
-            folder = res[0]
-            for root, _, fs in os.walk(folder):
+            for root, _, fs in os.walk(res[0]):
                 for f in sorted(fs):
                     fp = os.path.join(root, f)
                     if ext_category(fp):
                         out.append(self._meta(fp))
         return out
+
+    def add_paths(self, paths):
+        out = []
+        for p in (paths or []):
+            try:
+                if p and os.path.isfile(p) and ext_category(p):
+                    out.append(self._meta(p))
+            except Exception:
+                pass
+        return out
+
+    def add_dropped(self, name, data_url):
+        try:
+            if not ext_category("x" + os.path.splitext(name)[1]):
+                return None
+            raw = base64.b64decode((data_url or "").split(",")[-1])
+            d = os.path.join(tempfile.gettempdir(), "sbp_drop")
+            os.makedirs(d, exist_ok=True)
+            fp = os.path.join(d, os.path.basename(name))
+            with open(fp, "wb") as f:
+                f.write(raw)
+            return self._meta(fp)
+        except Exception:
+            return None
 
     def start_print(self, payload):
         _cancel.clear()
@@ -341,28 +380,29 @@ class Api:
         rng = payload.get("range") or ""
         paths = payload.get("files") or []
         total = len(paths)
+
+        def on_start(i):
+            _js("pyRow(%d,%s)" % (i, _q("قيد الطباعة")))
+
+        def on_done(i, okv):
+            _js("pyRow(%d,%s)" % (i, _q("تمت" if okv else "فشل")))
+
+        def on_log(m):
+            _js("pyLog(%s)" % _q(m))
+
+        def on_progress(p):
+            _js("pyProgress(%d)" % p)
+
+        on_log("بدء الطباعة كمهمة واحدة على: %s — %d ملف%s"
+               % (printer, total, (" (نسخ: %d)" % copies) if copies > 1 else ""))
         ok = fail = 0
         try:
-            with PrintEngine(printer, copies, rng, 300,
-                             log=lambda m: _js("pyLog(%s)" % _q(m)),
-                             cancel_event=_cancel) as eng:
-                for i, p in enumerate(paths):
-                    if _cancel.is_set():
-                        _js("pyLog(%s,'warn')" % _q("تم الإيقاف بواسطة المستخدم."))
-                        break
-                    _js("pyRow(%d,%s)" % (i, _q("قيد الطباعة")))
-                    _js("pyLog(%s)" % _q("[%d/%d] %s" % (i + 1, total, os.path.basename(p))))
-                    try:
-                        eng.print_file(p)
-                        ok += 1
-                        _js("pyRow(%d,%s)" % (i, _q("تمت")))
-                    except Exception as e:
-                        fail += 1
-                        _js("pyRow(%d,%s)" % (i, _q("فشل")))
-                        _js("pyLog(%s,'warn')" % _q("خطأ: %s" % e))
-                    _js("pyProgress(%d)" % round((i + 1) * 100.0 / max(1, total)))
+            with PrintEngine(printer, copies, rng, 300, log=on_log, cancel_event=_cancel) as eng:
+                ok, fail = eng.print_batch(paths, on_start, on_done, on_log, on_progress)
         except Exception as e:
-            _js("pyLog(%s,'warn')" % _q("خطأ عام: %s" % e))
+            on_log("خطأ عام: %s" % e)
+        if _cancel.is_set():
+            _js("pyLog(%s,'warn')" % _q("تم الإيقاف — أُلغيت بقية المهمة."))
         _js("pyDone(%d,%d)" % (ok, fail))
 
 

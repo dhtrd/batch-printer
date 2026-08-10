@@ -20,7 +20,7 @@ GitHub يبنيه لك في السحابة، وأنت فقط ترفع الملف
 ## 3) ارفع ملفات التطبيق
 - داخل المستودع: **Add file ▾ ← Upload files**.
 - من هذه الحزمة (بعد فكّ ضغطها) اسحب هذه الملفات الأربعة إلى الصفحة:
-  `app.py` ، `ui.html` ، `requirements.txt` ، `installer.iss`
+  `app.py` ، `ui.html` ، `requirements.txt` ، `installer.iss` ، `icon.ico`
 - انزل للأسفل واضغط **Commit changes**.
 
 ## 4) أضف ملف البناء (workflow)
