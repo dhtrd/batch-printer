@@ -1,0 +1,440 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>الطابعة الجماعية — أوركيد</title><style>:root{--accent2:#a78bfa;--accent-glow:rgba(109,94,252,.4);--danger:#c9382b;--danger-line:#eab1ac;--wait:#98a2b3;--print:#d98a00;--done:#12b76a;--accent:#6d5efc;--accent-dark:#5a49e8;--accent-soft:#efecfe;--panel:#ffffff;--panel2:#f7f6ff;--line:#ecedf4;--ink:#1f2430;--muted:#868da0;--field:#ffffff;--on-accent:#ffffff;--log-bg:#faf9ff;--log-ink:#4a4570;--page-bg:#f6f7fb;}
+body{background:var(--page-bg)}
+
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);font-family:"Segoe UI","Noto Kufi Arabic","Tahoma",sans-serif;padding:16px;display:flex;justify-content:center}
+h1,h2,h3,h4,h5{margin:0}
+.tag{position:fixed;top:8px;inset-inline-start:8px;background:var(--accent-dark);color:var(--on-accent);font-size:11px;padding:4px 11px;border-radius:20px;z-index:5;opacity:.95}
+/* شريط الأدوات */
+.toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 11px;border-radius:9px;cursor:pointer;font-size:12.5px;font-family:inherit;transition:.12s}
+.btn:hover{background:var(--accent-soft);border-color:var(--accent)}
+.btn:active{transform:translateY(1px)}
+.btn.gear{background:var(--accent-soft);font-weight:700}
+.sep{width:1px;background:var(--line);margin:2px 4px}
+.printer-sel{background:var(--field);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 12px;font-family:inherit;font-size:13px}
+/* القائمة */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:14px}
+.tbl-wrap{overflow:auto;max-height:300px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+thead th{background:var(--panel2);text-align:center;padding:9px 8px;position:sticky;top:0;border-bottom:1px solid var(--line);color:var(--muted);font-weight:700;font-size:12px}
+th.name,td.name{text-align:start}
+tbody td{padding:8px;border-top:1px solid var(--line);text-align:center}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--accent-soft)}
+tbody tr.selected{background:var(--accent-soft)}
+.empty{padding:30px;text-align:center;color:var(--muted);font-size:13.5px}
+.badge{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.st{font-weight:700;font-size:12.5px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:6px}
+.s-wait{color:var(--wait)}.s-wait .dot{background:var(--wait)}
+.s-print{color:var(--print)}.s-print .dot{background:var(--print);animation:pulse 1s infinite}
+.s-done{color:var(--done)}.s-done .dot{background:var(--done)}
+@keyframes pulse{50%{opacity:.3}}
+/* إعداد سريع */
+.quick{display:flex;gap:11px;margin:0 14px;flex-wrap:wrap}
+.quick .f{flex:1;min-width:120px}
+.quick label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.quick select,.quick input{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--field);color:var(--ink)}
+/* الأسفل */
+.bottom{padding:12px 14px}
+.progress{height:11px;background:var(--panel2);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:.25s}
+.controls{display:flex;align-items:center;gap:10px;margin-top:11px}
+.start{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--on-accent);border:none;border-radius:12px;padding:11px 24px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 20px var(--accent-glow)}
+.start:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.stop{background:var(--panel);border:1px solid var(--danger-line);color:var(--danger);border-radius:12px;padding:9px 18px;cursor:pointer;font-family:inherit;font-weight:700}
+.stop:disabled{opacity:.4;cursor:not-allowed}
+.count{margin-inline-start:auto;color:var(--muted);font-size:13px}
+/* السجل */
+.logwrap{padding:0 14px 14px}
+.lg-title{font-size:12.5px;color:var(--muted);margin:6px 0}
+.log{height:110px;overflow:auto;background:var(--log-bg);color:var(--log-ink);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12px;line-height:1.7;font-family:"Consolas","Segoe UI",monospace}
+.log .ok{color:var(--done)}.log .warn{color:var(--print)}.log .head{color:var(--accent2)}
+/* المودالات */
+.overlay{position:fixed;inset:0;background:rgba(10,18,32,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.overlay.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;max-width:440px;width:100%;padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.modal h4{margin:0 0 10px;color:var(--accent)}
+.modal p{margin:6px 0;font-size:14px;line-height:1.7;color:var(--ink)}
+.modal .actions{display:flex;gap:10px;margin-top:16px}
+/* نافذة الإعدادات الكبيرة */
+.setwin{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:840px;max-width:100%;height:82vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.4)}
+.setwin .shead{background:var(--accent-dark);color:var(--on-accent);padding:12px 16px;display:flex;align-items:center;gap:10px;font-weight:700}
+.setwin .shead .x{margin-inline-start:auto;cursor:pointer;font-size:20px}
+.setbody{display:flex;flex:1;min-height:0}
+.settabs{width:214px;background:var(--panel2);border-inline-start:1px solid var(--line);overflow:auto;padding:6px}
+.set-tab{padding:9px 12px;border-radius:8px;cursor:pointer;font-size:12.5px;margin-bottom:2px}
+.set-tab:hover{background:var(--accent-soft)}
+.set-tab.active{background:var(--accent);color:var(--on-accent);font-weight:700}
+.setcontent{flex:1;overflow:auto;padding:18px 20px}
+.set-panel{display:none}.set-panel.active{display:block}
+.set-panel h5{font-size:16px;color:var(--accent);margin-bottom:4px}
+.set-panel .desc{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fld label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.fld select,.fld input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;background:var(--field);color:var(--ink)}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;margin:7px 0;color:var(--ink)}
+.new-tag{background:var(--accent-soft);color:var(--accent);font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:10px;margin-inline-start:6px}
+.note{background:var(--accent-soft);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 11px;font-size:12.5px;margin-top:10px}
+.foot{border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;background:var(--panel2)}
+.foot .spacer{margin-inline-start:auto}
+.toast{position:fixed;bottom:26px;inset-inline-start:50%;transform:translateX(50%);background:#1f2733;color:#fff;padding:10px 18px;border-radius:24px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:60}
+.toast.show{opacity:1;bottom:34px}
+
+
+.shell{width:100%;max-width:1040px;display:flex;background:var(--panel);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 20px 60px rgba(40,30,80,.18)}
+.side{width:212px;background:var(--panel2);border-inline-start:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+.brand .lg{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 6px 16px var(--accent-glow)}
+.brand b{font-size:15px}.brand span{display:block;font-size:11px;color:var(--muted)}
+.nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;color:var(--ink);font-size:13.5px;cursor:pointer;margin-bottom:3px;opacity:.85}
+.nav a:hover{background:var(--accent-soft);opacity:1}
+.nav a.active{background:var(--accent);color:var(--on-accent);opacity:1}
+.side .sfoot{margin-top:auto;font-size:11px;color:var(--muted);text-align:center}
+.main{flex:1;min-width:0}
+.hd{display:flex;align-items:center;gap:10px;padding:18px 16px 4px}
+.hd h1{font-size:20px}.hd p{margin:3px 0 0;color:var(--muted);font-size:12.5px}
+.hd .sp{margin-inline-start:auto}
+.card{margin:14px 16px}.toolbar{margin:0 16px;border:1px solid var(--line);border-radius:12px}
+.quick{margin:0 16px}.bottom{padding:12px 16px}.logwrap{padding:0 16px 16px}
+#themeBtn{white-space:nowrap}
+
+
+select, .printer-sel{
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  border:2px solid transparent !important;border-radius:10px !important;
+  padding-inline-end:34px !important;color:var(--ink);
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' fill='none' stroke='%236d5efc' stroke-width='2' stroke-linecap='round'/></svg>"),
+    linear-gradient(var(--field),var(--field)),
+    linear-gradient(135deg,var(--accent),var(--accent2)) !important;
+  background-origin:border-box !important;
+  background-clip:padding-box,padding-box,border-box !important;
+  background-repeat:no-repeat !important;
+  background-position:left 12px center,0 0,0 0 !important;
+  background-size:12px 8px,100% 100%,100% 100% !important;
+}
+input[type=checkbox]{
+  -webkit-appearance:none;appearance:none;margin:0;flex:none;cursor:pointer;
+  width:50px;height:28px;border-radius:30px;background:var(--line);position:relative;transition:.2s;
+}
+input[type=checkbox]::before{
+  content:"";position:absolute;top:3px;inset-inline-start:3px;width:22px;height:22px;
+  background:#fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.3);transition:.2s;
+}
+input[type=checkbox]:checked{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+input[type=checkbox]:checked::before{inset-inline-start:25px}
+
+
+.xs{position:relative;width:100%;font-family:inherit}
+.hd .xs{width:232px;flex:none}
+.xs-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;border:2px solid transparent;border-radius:10px;padding:9px 12px;color:var(--ink);font-size:13px;background:linear-gradient(var(--field),var(--field)) padding-box,linear-gradient(135deg,var(--accent),var(--accent2)) border-box}
+.xs-ar{font-size:10px;color:var(--muted);transition:.2s}
+.xs.open .xs-ar{transform:rotate(180deg)}
+.xs-menu{position:absolute;inset-inline:0;top:calc(100% + 6px);z-index:80;display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 16px 38px rgba(20,15,45,.35);padding:6px;max-height:250px;overflow:auto}
+.xs.open .xs-menu{display:block}
+.xs-opt{display:flex;flex-direction:column;gap:1px;padding:8px 11px;border-radius:8px;cursor:pointer;color:var(--ink);font-size:13.5px}
+.xs-opt small{color:var(--muted);font-size:10.5px}
+.xs-opt:hover,.xs-opt.sel{background:var(--accent);color:#fff}
+.xs-opt:hover small,.xs-opt.sel small{color:rgba(255,255,255,.85)}
+
+body.dark{--page-bg:#131020;--panel:#1b1830;--panel2:#221d3a;--line:#332c4e;--ink:#e9e7f6;--muted:#a79fca;--field:#211c36;--accent-soft:#2a2450;--log-bg:#100d1a;--log-ink:#b9b2e0;--wait:#8a90a6;--done:#34d399;--print:#f0b429;--danger:#ff8a8a;--danger-line:#5a2b40;}
+.PDF{background:#fdecec;color:#e5484d}.Word{background:#e8f0fb;color:#2b6cb0}.Excel{background:#e6f6ec;color:#12b76a}.PowerPoint{background:#fdefe0;color:#d9730d}.img{background:#f0e9fd;color:#7c3aed}.CAD{background:#e9f6fb;color:#0e7490}.Email{background:#fbeef7;color:#a3357e}.Web{background:#eef2f7;color:#475569}
+body.dark .PDF{background:#3a1d22;color:#ff7b82}body.dark .Word{background:#16283f;color:#6cb0ff}body.dark .Excel{background:#123026;color:#5fe0a2}body.dark .PowerPoint{background:#3a2a17;color:#ffb267}body.dark .img{background:#2a1f3d;color:#c4a5ff}body.dark .CAD{background:#0f2f38;color:#67d3e8}body.dark .Email{background:#38182e;color:#f0a6d2}body.dark .Web{background:#1b2537;color:#9fb4d0}</style></head><body><div class="shell"><aside class="side"><div class="brand"><div class="lg">🖨</div><div><b>الطابعة الجماعية</b><span>Batch Printer</span></div></div><nav class="nav"><a class="active">🏠 الرئيسية</a><a onclick="openSettings()">⚙ الإعدادات</a><a onclick="estimate()">🧮 تقدير الطباعة</a><a onclick="openSettings()">💧 العلامة المائية</a><a onclick="about()">ℹ حول البرنامج</a></nav><div class="sfoot">الإصدار 1.1.0<br>مجاني · يعمل بلا إنترنت</div></aside><main class="main"><div class="hd"><div><h1>اطبع دفعة واحدة</h1><p>أضف ملفاتك ثم اطبعها كلها بضغطة واحدة</p></div><div class="sp"></div><button class="btn" id="themeBtn" onclick="toggleTheme()">🌙 ليلي</button><select id="printer" class="printer-sel"><option>HP LaserJet Pro M404</option><option>Canon G3411</option><option>EPSON L3150</option><option>Microsoft Print to PDF</option></select></div>
+<div class="toolbar">
+  <button class="btn" onclick="addFiles()">＋ إضافة ملفات</button>
+  <button class="btn" onclick="addFolder()">📁 مجلد</button>
+  <button class="btn" onclick="addArchive()">🗜 أرشيف</button>
+  <button class="btn" onclick="addUrl()">🌐 روابط</button>
+  <button class="btn" onclick="addOutlook()">✉ Outlook</button>
+  <div class="sep"></div>
+  <button class="btn" onclick="removeSelected()">🗑 حذف</button>
+  <button class="btn" onclick="clearAll()">🧹 تفريغ</button>
+  <button class="btn" onclick="move(-1)">▲</button>
+  <button class="btn" onclick="move(1)">▼</button>
+  <button class="btn" onclick="sortList()">⇅ فرز</button>
+  <div class="sep"></div>
+  <button class="btn" onclick="toast('محاكاة: حفظ القائمة')">💾 حفظ</button>
+  <button class="btn" onclick="toast('محاكاة: فتح قائمة')">📂 فتح</button>
+  <div class="sep"></div>
+  <button class="btn gear" onclick="openSettings()">⚙ الإعدادات</button>
+  <button class="btn" onclick="estimate()">🧮 تقدير</button>
+</div>
+
+<div class="card">
+  <div class="tbl-wrap">
+    <table><thead><tr>
+      <th style="width:40px">#</th><th class="name">اسم الملف</th>
+      <th style="width:104px">الصيغة</th><th style="width:78px">الحجم</th><th style="width:120px">الحالة</th>
+    </tr></thead><tbody id="rows"></tbody></table>
+    <div class="empty" id="emptyMsg">القائمة فارغة — أضف ملفات للبدء</div>
+  </div>
+</div>
+
+<div class="quick">
+  <div class="f"><label>عدد النسخ</label><input type="number" value="1" min="1"></div>
+  <div class="f"><label>الألوان</label><select><option>ملوّن</option><option>رمادي</option></select></div>
+  <div class="f"><label>على الوجهين</label><select><option>كما في الطابعة</option><option>وجه واحد</option><option>الحافة الطويلة</option></select></div>
+  <div class="f"><label>نطاق الصفحات</label><input type="text" placeholder="1-3,5"></div>
+</div>
+
+<div class="bottom">
+  <div class="progress"><div class="bar" id="bar"></div></div>
+  <div class="controls">
+    <button class="start" id="btnStart" onclick="start()">▶ ابدأ الطباعة</button>
+    <button class="stop" id="btnStop" onclick="stop()" disabled>■ إيقاف</button>
+    <span class="count" id="cnt"></span>
+  </div>
+</div>
+
+<div class="logwrap"><div class="lg-title">السجل</div><div class="log" id="log"></div></div>
+</main></div>
+<div class="overlay" id="setOverlay" onclick="if(event.target===this)closeSettings()">
+ <div class="setwin">
+  <div class="shead">⚙ الإعدادات الكاملة — مطابقة لخصائص Print Conductor <span class="x" onclick="closeSettings()">×</span></div>
+  <div class="setbody">
+   <div class="settabs">
+    <div class="set-tab active" onclick="setTab('common',this)">🖨 الإعدادات الشائعة</div>
+    <div class="set-tab" onclick="setTab('advanced',this)">⚙ متقدّم</div>
+    <div class="set-tab" onclick="setTab('layout',this)">🧩 التخطيط والكتيّب</div>
+    <div class="set-tab" onclick="setTab('watermark',this)">💧 العلامة المائية</div>
+    <div class="set-tab" onclick="setTab('stamp',this)">🔖 الأختام والترقيم</div>
+    <div class="set-tab" onclick="setTab('cover',this)">📄 الأغلفة والفواصل</div>
+    <div class="set-tab" onclick="setTab('preprint',this)">✂ ما قبل الطباعة</div>
+    <div class="set-tab" onclick="setTab('engine',this)">🛠 محرّك الطباعة</div>
+    <div class="set-tab" onclick="setTab('format',this)">📑 حسب نوع الملف</div>
+    <div class="set-tab" onclick="setTab('reports',this)">📊 التقارير</div>
+    <div class="set-tab" onclick="setTab('extras',this)">✨ مزايا إضافية مقترحة</div>
+   </div>
+   <div class="setcontent">
+    <div class="set-panel active" id="panel-common"><h5>الإعدادات الشائعة</h5><div class="desc">أكثر الخيارات استخدامًا.</div>
+     <div class="grid">
+      <div class="fld"><label>عدد النسخ</label><input type="number" value="1"></div>
+      <div class="fld"><label>وضع الألوان</label><select><option>ملوّن</option><option>تدرّج رمادي</option><option>أبيض/أسود</option></select></div>
+      <div class="fld"><label>الطباعة على الوجهين</label><select><option>كما في الطابعة</option><option>وجه واحد</option><option>الحافة الطويلة</option><option>الحافة القصيرة</option></select></div>
+      <div class="fld"><label>التجميع (Collation)</label><select><option>حسب المستندات</option><option>حسب الصفحات</option><option>كما في الطابعة</option></select></div>
+      <div class="fld"><label>اتجاه الصفحة</label><select><option>تلقائي</option><option>عمودي</option><option>أفقي</option></select></div>
+      <div class="fld"><label>حجم الورق</label><select><option>A4</option><option>A3</option><option>Letter</option><option>Legal</option></select></div>
+      <div class="fld"><label>التحجيم</label><select><option>احتواء داخل الصفحة</option><option>الحجم الفعلي</option><option>مخصّص %</option></select></div>
+      <div class="fld"><label>مصدر الورق/الدرج</label><select><option>كما في الطابعة</option><option>حسب حجم الصفحة</option><option>الدرج 1</option><option>الدرج 2</option></select></div>
+      <div class="fld"><label>نطاق الصفحات</label><input type="text" placeholder="1-3,5,10-last"></div>
+      <div class="fld"><label>طباعة الصفحات</label><select><option>الكل</option><option>الفردية فقط</option><option>الزوجية فقط</option></select></div>
+     </div></div>
+    <div class="set-panel" id="panel-advanced"><h5>إعدادات متقدّمة</h5><div class="desc">تحكّم دقيق في مهام الطباعة.</div>
+     <label class="chk"><input type="checkbox"> وضع «مهمة طباعة واحدة» (دمج كل الملفات بالترتيب)</label>
+     <label class="chk"><input type="checkbox"> ترتيب الطباعة العكسي</label>
+     <label class="chk"><input type="checkbox"> تخطّي الصفحات المكررة</label>
+     <label class="chk"><input type="checkbox"> عدم طباعة الصفحات الفارغة</label>
+     <label class="chk"><input type="checkbox"> صفحة زوجية فارغة إضافية في وضع الوجهين</label>
+     <label class="chk"><input type="checkbox"> إبقاء الملفات المصدر متاحة للتعديل</label>
+     <label class="chk"><input type="checkbox"> دعم المسارات الطويلة (أكثر من 260 حرفًا)</label>
+     <label class="chk"><input type="checkbox"> حذف/نقل الملفات بعد الطباعة</label>
+     <div class="grid" style="margin-top:10px">
+      <div class="fld"><label>أقصى نسخ لكل مهمة</label><input type="number" value="0"></div>
+      <div class="fld"><label>طباعة القائمة (مرات)</label><input type="number" value="1"></div>
+      <div class="fld"><label>طباعة كل N صفحة كمهمة</label><input type="number" value="0"></div>
+      <div class="fld"><label>اسم مهمة الطباعة</label><input type="text" value="{srcfilename}"></div>
+     </div></div>
+    <div class="set-panel" id="panel-layout"><h5>التخطيط والكتيّب</h5><div class="desc">عدة صفحات في ورقة أو كتيّب.</div>
+     <div class="grid">
+      <div class="fld"><label>عدة صفحات في ورقة (N-up)</label><select><option>1</option><option>2</option><option>4</option><option>6</option><option>9</option><option>16</option></select></div>
+      <div class="fld"><label>اتجاه الترتيب</label><select><option>أفقي ثم عمودي</option><option>عمودي ثم أفقي</option></select></div>
+      <div class="fld"><label>التباعد (مم)</label><input type="number" value="2"></div>
+      <div class="fld"><label>إطار حول كل صفحة</label><select><option>بدون</option><option>خط رفيع</option></select></div>
+     </div>
+     <label class="chk" style="margin-top:10px"><input type="checkbox"> طباعة على شكل كتيّب (Booklet)</label></div>
+    <div class="set-panel" id="panel-watermark"><h5>العلامة المائية</h5><div class="desc">نص/صورة/باركود فوق كل صفحة.</div>
+     <div class="grid">
+      <div class="fld"><label>النوع</label><select><option>نص</option><option>صورة</option><option>باركود</option></select></div>
+      <div class="fld"><label>النص</label><input type="text" value="سري — نسخة"></div>
+      <div class="fld"><label>الخط والحجم</label><input type="text" value="Arial 48"></div>
+      <div class="fld"><label>الدوران</label><input type="text" value="45°"></div>
+      <div class="fld"><label>المحاذاة</label><select><option>وسط</option><option>أعلى</option><option>أسفل</option></select></div>
+      <div class="fld"><label>الشفافية</label><input type="text" value="30%"></div>
+     </div>
+     <label class="chk" style="margin-top:8px"><input type="checkbox" checked> إدراج أرقام الصفحات</label>
+     <label class="chk"><input type="checkbox"> إدراج بيانات الملف (الاسم/المسار/النوع)</label></div>
+    <div class="set-panel" id="panel-stamp"><h5>الأختام والترقيم (Bates)</h5><div class="desc">ختم نصي/صورة وترقيم قانوني متسلسل.</div>
+     <div class="grid">
+      <div class="fld"><label>نوع الختم</label><select><option>نص</option><option>صورة</option></select></div>
+      <div class="fld"><label>الموضع</label><select><option>أسفل يمين</option><option>أسفل يسار</option><option>أعلى يمين</option></select></div>
+      <div class="fld"><label>Bates: البادئة</label><input type="text" value="ABC-"></div>
+      <div class="fld"><label>رقم البداية</label><input type="number" value="1"></div>
+      <div class="fld"><label>عدد الخانات</label><input type="number" value="6"></div>
+      <div class="fld"><label>اللاحقة</label><input type="text" value=""></div>
+     </div></div>
+    <div class="set-panel" id="panel-cover"><h5>الأغلفة والفواصل</h5><div class="desc">صفحات فاصلة بين المستندات وأغلفة.</div>
+     <div class="grid">
+      <div class="fld"><label>ورقة فاصلة بين المستندات</label><select><option>بدون</option><option>ورقة فارغة</option><option>غلاف ببيانات المستند</option><option>اسم الملف</option></select></div>
+      <div class="fld"><label>درج الفواصل</label><select><option>نفس درج المستند</option><option>الدرج 2</option></select></div>
+     </div>
+     <label class="chk" style="margin-top:8px"><input type="checkbox"> استخدام قالب غلاف مخصّص (.cover)</label>
+     <div class="note">يوجد «مصمّم غلاف» كامل في الأصل. سنوفّر قوالب جاهزة + محرّر مبسّط.</div></div>
+    <div class="set-panel" id="panel-preprint"><h5>عمليات ما قبل الطباعة</h5><div class="desc">تُطبَّق قبل الإرسال للطابعة.</div>
+     <label class="chk"><input type="checkbox"> إدراج صفحات فارغة</label>
+     <label class="chk"><input type="checkbox"> اقتصاص تلقائي للحواف الفارغة</label>
+     <label class="chk"><input type="checkbox"> اقتصاص الهوامش بمقدار محدّد</label>
+     <label class="chk"><input type="checkbox"> اقتصاص مستطيل محدّد</label></div>
+    <div class="set-panel" id="panel-engine"><h5>محرّك الطباعة</h5><div class="desc">اختيار طريقة معالجة كل نوع.</div>
+     <div class="grid">
+      <div class="fld"><label>محرّك PDF</label><select><option>PDFium (مدمج)</option><option>Acrobat</option><option>Cnv2Pdf</option></select></div>
+      <div class="fld"><label>محرّك أوفيس</label><select><option>تطبيقات Office المثبّتة</option><option>Cnv2Pdf</option></select></div>
+      <div class="fld"><label>محرّك الصور</label><select><option>مدمج</option></select></div>
+      <div class="fld"><label>محرّك CAD (اختياري)</label><select><option>غير مفعّل</option><option>CADlib</option><option>eDrawings</option></select></div>
+     </div>
+     <div class="fld" style="margin-top:10px"><label>ربط امتداد غير معروف بنوع معروف</label><input type="text" placeholder="مثال: .log ← نص"></div></div>
+    <div class="set-panel" id="panel-format"><h5>إعدادات حسب نوع الملف</h5><div class="desc">خيارات خاصة لكل صيغة.</div>
+     <b style="font-size:13px">Word</b>
+     <label class="chk"><input type="checkbox" checked> تحديث الحقول الديناميكية</label>
+     <label class="chk"><input type="checkbox"> إخفاء المراجعات/التعديلات</label>
+     <label class="chk"><input type="checkbox" checked> تخطّي التعليقات عند الطباعة</label>
+     <b style="font-size:13px">PDF</b>
+     <label class="chk"><input type="checkbox"> طباعة التعليقات التوضيحية</label>
+     <label class="chk"><input type="checkbox"> معالجة PDF Portfolio مع الفرز</label>
+     <b style="font-size:13px">Excel</b>
+     <label class="chk"><input type="checkbox" checked> احتواء ورقة العمل داخل الصفحة</label>
+     <div class="fld"><label>قائمة كلمات مرور للملفات المحمية</label><input type="text" placeholder="تُحفظ محليًا فقط"></div></div>
+    <div class="set-panel" id="panel-reports"><h5>التقارير</h5><div class="desc">توثيق عملية الطباعة.</div>
+     <label class="chk"><input type="checkbox" checked> تقرير تقدير الطباعة (قبل البدء)</label>
+     <label class="chk"><input type="checkbox"> تقرير مفصّل بملخّص المستندات (حفظ PDF)</label>
+     <label class="chk"><input type="checkbox" checked> صفحة تقرير نهائية بالنتائج والإجماليات</label></div>
+    <div class="set-panel" id="panel-extras"><h5>مزايا إضافية مقترحة <span class="new-tag">ليست في الأصل</span></h5><div class="desc">أقترحها لأنها تخدمك أكثر — كلها اختيارية.</div>
+     <label class="chk"><input type="checkbox" checked> واجهة عربية أصلية RTL كاملة</label>
+     <label class="chk"><input type="checkbox"> الوضع الداكن (Dark Mode)</label>
+     <label class="chk"><input type="checkbox" checked> معاينة مصغّرة لكل ملف</label>
+     <label class="chk"><input type="checkbox" checked> حِزم إعدادات محفوظة (Presets)</label>
+     <label class="chk"><input type="checkbox"> مجلّد مُراقَب: طباعة تلقائية لأي ملف يُوضع فيه</label>
+     <label class="chk"><input type="checkbox"> جدولة الطباعة في وقت محدّد</label>
+     <label class="chk"><input type="checkbox" checked> تصدير سجل الطباعة إلى Excel/CSV</label>
+     <label class="chk"><input type="checkbox" checked> بحث وتصفية داخل القائمة</label>
+     <label class="chk"><input type="checkbox"> تقدير التكلفة بالريال</label>
+     <div class="note">ميزة أمان: البرنامج <b>مجاني ومفتوح المصدر ويعمل بلا إنترنت</b> — لا يوفّره Print Conductor.</div></div>
+   </div>
+  </div>
+  <div class="foot">
+   <button class="btn" onclick="toast('محاكاة: تصدير .INI')">تصدير .INI</button>
+   <button class="btn" onclick="toast('محاكاة: استيراد')">استيراد</button>
+   <button class="btn" onclick="toast('محاكاة: إعادة تعيين')">إعادة تعيين</button>
+   <span class="spacer"></span>
+   <button class="start" style="padding:8px 18px;font-size:14px" onclick="closeSettings();toast('تم حفظ الإعدادات (محاكاة)')">حفظ</button>
+   <button class="btn" onclick="closeSettings()">إغلاق</button>
+  </div>
+ </div>
+</div>
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+ <div class="modal"><h4 id="mTitle"></h4><div id="mBody"></div>
+  <div class="actions"><button class="start" style="padding:8px 18px;font-size:14px" onclick="closeModal()">حسنًا</button></div></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+var $=function(id){return document.getElementById(id)};
+var files=[]; var selected=new Set(); var printing=false; var HAS_PY=false;
+var XDIMS={"A4":"210 × 297 مم","A3":"297 × 420 مم","Letter":"216 × 279 مم","Legal":"216 × 356 مم","B5":"176 × 250 مم"};
+var EXT={pdf:"PDF",doc:"Word",docx:"Word",rtf:"Word",txt:"Word",odt:"Word",htm:"Word",html:"Word",
+  xls:"Excel",xlsx:"Excel",xlsm:"Excel",csv:"Excel",ods:"Excel",ppt:"PowerPoint",pptx:"PowerPoint",odp:"PowerPoint",
+  jpg:"صورة",jpeg:"صورة",png:"صورة",bmp:"صورة",gif:"صورة",tif:"صورة",tiff:"صورة",webp:"صورة"};
+var CLS={"PDF":"PDF","Word":"Word","Excel":"Excel","PowerPoint":"PowerPoint","صورة":"img"};
+function typeOf(n){var e=(n.split('.').pop()||'').toLowerCase();return EXT[e]||"ملف";}
+function badge(t){return '<span class="badge '+(CLS[t]||"PDF")+'">'+t+'</span>';}
+function statusHtml(s){var c=s==="تمت"?"s-done":s==="قيد الطباعة"?"s-print":s==="فشل"?"s-fail":"s-wait";
+  var tx=s==="قيد الطباعة"?"● قيد الطباعة":s==="تمت"?"✔ تمت":s==="فشل"?"✖ فشل":"بالانتظار";
+  return '<span class="st '+c+'"><span class="dot"></span>'+tx+'</span>';}
+function render(){
+  $("rows").innerHTML=files.map(function(f,i){return '<tr onclick="toggleSel('+i+')" class="'+(selected.has(i)?"selected":"")+'"><td>'+(i+1)+'</td><td class="name">'+f.name+'</td><td>'+badge(f.type)+'</td><td>'+(f.size||'')+'</td><td>'+statusHtml(f.status||"بالانتظار")+'</td></tr>';}).join("");
+  if($("emptyMsg"))$("emptyMsg").style.display=files.length?"none":"block";
+  if($("cnt"))$("cnt").textContent=files.length?("عدد الملفات: "+files.length):"لا توجد ملفات";
+}
+function toggleSel(i){selected.has(i)?selected.delete(i):selected.add(i);render();}
+
+async function addFiles(){
+  if(!HAS_PY){["تقرير.pdf","فاتورة.docx","صورة.png"].forEach(function(n){files.push({name:n,type:typeOf(n),size:"—",status:"بالانتظار"});});render();return;}
+  try{var res=await window.pywebview.api.pick_files();(res||[]).forEach(function(f){files.push({name:f.name,type:typeOf(f.name),size:f.size,path:f.path,status:"بالانتظار"});});render();if(res&&res.length)log("أُضيف "+res.length+" ملفًا.");}
+  catch(e){log("تعذّرت الإضافة: "+e,"warn");}
+}
+async function addFolder(){
+  if(!HAS_PY){addFiles();return;}
+  try{var res=await window.pywebview.api.pick_folder();(res||[]).forEach(function(f){files.push({name:f.name,type:typeOf(f.name),size:f.size,path:f.path,status:"بالانتظار"});});render();log("أُضيف "+((res||[]).length)+" ملفًا من المجلد.");}
+  catch(e){log("تعذّر: "+e,"warn");}
+}
+function addArchive(){toast("استخراج الأرشيف غير مفعّل في هذه النسخة");}
+function addUrl(){toast("قائمة الروابط غير مفعّلة في هذه النسخة");}
+function addOutlook(){toast("استيراد Outlook غير مفعّل في هذه النسخة");}
+function removeSelected(){if(!selected.size){toast("حدّد صفوفًا أولًا");return;}files=files.filter(function(_,i){return !selected.has(i);});selected.clear();render();}
+function clearAll(){files=[];selected.clear();setBar(0);render();}
+function move(d){if(selected.size!==1){toast("حدّد صفًا واحدًا");return;}var i=Array.from(selected)[0],j=i+d;if(j<0||j>=files.length)return;var t=files[i];files[i]=files[j];files[j]=t;selected=new Set([j]);render();}
+function sortList(){files.sort(function(a,b){return a.name.localeCompare(b.name,'ar');});selected.clear();render();}
+
+async function start(){
+  if(printing)return;
+  if(!files.length){toast("القائمة فارغة. أضف ملفات أولًا.");return;}
+  var printer=$("printer")?$("printer").value:"";
+  var ci=document.querySelector('.quick input[type=number]');var copies=ci?Math.max(1,parseInt(ci.value)||1):1;
+  var ri=document.querySelector('.quick input[type=text]');var rng=ri?ri.value:"";
+  printing=true;$("btnStart").disabled=true;$("btnStop").disabled=false;setBar(0);
+  files.forEach(function(f){f.status="بالانتظار";});render();
+  log("بدء الطباعة على: "+printer+" — عدد الملفات: "+files.length+(copies>1?(" — نسخ: "+copies):""),"head");
+  if(!HAS_PY){await demoPrint();return;}
+  try{await window.pywebview.api.start_print({printer:printer,copies:copies,range:rng,files:files.map(function(f){return f.path;})});}
+  catch(e){log("خطأ عام: "+e,"warn");pyDone(0,files.length);}
+}
+function stop(){ if(printing){ if(HAS_PY){try{window.pywebview.api.cancel();}catch(e){}} log("طلب الإيقاف…","warn"); } }
+function pyRow(i,s){ if(files[i]){files[i].status=s;render();} }
+function pyProgress(p){ setBar(p); }
+function pyLog(m,c){ log(m,c); }
+function pyDone(ok,fail){ printing=false;$("btnStart").disabled=false;$("btnStop").disabled=true;
+  log("انتهى. نجح: "+ok+" — فشل: "+fail,"ok"); if(!fail)log("— تقرير نهائي: طُبعت كل المستندات بنجاح —","head"); }
+function setBar(p){if($("bar"))$("bar").style.width=p+"%";}
+function log(m,c){var el=$("log");if(!el)return;var d=document.createElement("div");if(c)d.className=c;d.textContent=m;el.appendChild(d);el.scrollTop=el.scrollHeight;}
+async function demoPrint(){for(var i=0;i<files.length;i++){files[i].status="قيد الطباعة";render();await new Promise(function(r){setTimeout(r,380)});files[i].status="تمت";render();setBar(Math.round((i+1)/files.length*100));}pyDone(files.length,0);}
+
+function openSettings(){$("setOverlay").classList.add("open");}
+function closeSettings(){$("setOverlay").classList.remove("open");}
+function setTab(id,el){var ps=document.querySelectorAll('.set-panel');for(var i=0;i<ps.length;i++)ps[i].classList.remove('active');var ts=document.querySelectorAll('.set-tab');for(var j=0;j<ts.length;j++)ts[j].classList.remove('active');$("panel-"+id).classList.add('active');el.classList.add('active');}
+function openModal(t,b){$("mTitle").textContent=t;$("mBody").innerHTML=b;$("overlay").classList.add("open");}
+function closeModal(){$("overlay").classList.remove("open");}
+function about(){openModal("حول البرنامج",'<p><b>الطابعة الجماعية الآمنة</b> — الإصدار 1.1.0</p><p>واجهة أوركيد، مجاني ومفتوح المصدر، يعمل محليًا بلا اتصال بالشبكة إلا عند طلبك التحقق من التحديثات.</p>');}
+function estimate(){var n=files.length,pg=n*3,cost=(pg*0.15).toFixed(2);openModal("تقدير الطباعة",'<p>عدد المستندات: <b>'+n+'</b></p><p>تقدير الصفحات: <b>'+pg+'</b></p><p>التكلفة التقديرية: <b>'+cost+' ريال</b></p>');}
+var _tt;function toast(m){var t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(_tt);_tt=setTimeout(function(){t.classList.remove("show");},2200);}
+
+function enhanceSelects(root){
+  var list=(root||document).querySelectorAll("select:not([data-xs])");
+  for(var s=0;s<list.length;s++){(function(sel){
+    sel.setAttribute("data-xs","1");sel.style.display="none";
+    var xs=document.createElement("div");xs.className="xs";
+    var trig=document.createElement("div");trig.className="xs-trigger";
+    trig.innerHTML='<span class="xs-val"></span><span class="xs-ar">▾</span>';
+    var menu=document.createElement("div");menu.className="xs-menu";
+    for(var i=0;i<sel.options.length;i++){(function(op){
+      var o=document.createElement("div");o.className="xs-opt"+(op.selected?" sel":"");
+      var d=XDIMS[op.value]||XDIMS[op.text];
+      o.innerHTML='<span>'+op.text+'</span>'+(d?'<small>'+d+'</small>':'');
+      o.addEventListener("click",function(e){e.stopPropagation();sel.value=op.value;
+        var os=menu.querySelectorAll(".xs-opt");for(var k=0;k<os.length;k++)os[k].classList.remove("sel");
+        o.classList.add("sel");trig.querySelector(".xs-val").textContent=op.text;xs.classList.remove("open");});
+      menu.appendChild(o);
+    })(sel.options[i]);}
+    var cur=sel.options[sel.selectedIndex];trig.querySelector(".xs-val").textContent=cur?cur.text:"";
+    trig.addEventListener("click",function(e){e.stopPropagation();var op=xs.classList.contains("open");closeXS();if(!op)xs.classList.add("open");});
+    xs.appendChild(trig);xs.appendChild(menu);sel.parentNode.insertBefore(xs,sel.nextSibling);
+  })(list[s]);}
+}
+function closeXS(){var o=document.querySelectorAll(".xs.open");for(var i=0;i<o.length;i++)o[i].classList.remove("open");}
+document.addEventListener("click",closeXS);
+function toggleTheme(){var d=document.body.classList.toggle("dark");$("themeBtn").textContent=d?"☀ نهاري":"🌙 ليلي";}
+
+var _inited=false;
+async function init(){
+  if(_inited)return;_inited=true;
+  HAS_PY=!!(window.pywebview&&window.pywebview.api);
+  if(HAS_PY){
+    try{var info=await window.pywebview.api.list_printers();var sel=$("printer");
+      if(sel&&info&&info.printers&&info.printers.length){sel.innerHTML="";info.printers.forEach(function(p){var o=document.createElement("option");o.textContent=p;o.value=p;if(p===info.default)o.selected=true;sel.appendChild(o);});}
+    }catch(e){}
+  }
+  enhanceSelects();render();
+  log(HAS_PY?"جاهز — التطبيق متصل بالطابعات.":"معاينة في المتصفح (بدون طباعة فعلية).","head");
+}
+window.addEventListener('pywebviewready',init);
+setTimeout(function(){ if(!_inited && !(window.pywebview&&window.pywebview.api)) init(); }, 900);
+</script></body></html>
